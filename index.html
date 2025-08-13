@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Advanced AIP / IAC PDF Compare</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Advanced AIP / IAC PDF Compare</h1>
+    <form id="compareForm" enctype="multipart/form-data">
+      <label>Old PDF (previous AIP/IAC)</label>
+      <input type="file" name="oldPdf" accept="application/pdf" required />
+      <label>New PDF (latest)</label>
+      <input type="file" name="newPdf" accept="application/pdf" required />
+      <button type="submit">Compare</button>
+    </form>
+
+    <div id="status"></div>
+    <div id="result"></div>
+
+    <div style="margin-top:20px; font-size:0.9em; color:#333;">
+      <strong>Notes:</strong> This advanced build uses Poppler (pdftoppm), Tesseract OCR and OpenCV (if available). The Dockerfile installs Poppler and Tesseract. Building OpenCV for opencv4nodejs may require extra steps on Render.
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
