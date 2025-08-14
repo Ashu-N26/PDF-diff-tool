@@ -1,61 +1,79 @@
+// server.js
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { compareAdvanced } = require('./compare_advanced');
-const rimraf = require('rimraf');
-const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const cors = require('cors');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static('public'));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'templates'));
+// Enable CORS (important for browser-based PDF upload)
+app.use(cors());
 
-const upload = multer({ dest: path.join(__dirname, 'uploads/'), limits: { fileSize: 200 * 1024 * 1024 } });
+// Middleware to parse JSON
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
-});
+// Serve static files (frontend)
+app.use(express.static(path.join(__dirname, '/')));
 
-// Upload two PDFs
-app.post('/compare', upload.fields([{ name: 'oldPdf' }, { name: 'newPdf' }]), async (req, res) => {
-  try {
-    if (!req.files || !req.files.oldPdf || !req.files.newPdf) {
-      return res.status(400).json({ error: 'Please upload both old and new PDFs' });
-    }
+// File storage config
+const upload = multer({ dest: 'uploads/' });
 
-    const oldPdfPath = req.files.oldPdf[0].path;
-    const newPdfPath = req.files.newPdf[0].path;
-    const sessionId = uuidv4();
-    const outDir = path.join(__dirname, 'tmp', sessionId);
-
-    const result = await compareAdvanced(oldPdfPath, newPdfPath, outDir, {
-      highlightColor: [255, 0, 0], // red
-      threshold: 0.08,
-      dpi: 300
+// Compare PDFs (placeholder logic — replace with your advanced diff code)
+function comparePDFs(oldPDF, newPDF, outputPDF, callback) {
+    // Example using diff-pdf (you can replace with your OCR+layout diff logic)
+    const cmd = `diff-pdf --output-diff=${outputPDF} ${oldPDF} ${newPDF}`;
+    exec(cmd, (err) => {
+        callback(err);
     });
+}
 
-    // Cleanup uploaded files (keep result for download)
-    rimraf(req.files.oldPdf[0].path, () => {});
-    rimraf(req.files.newPdf[0].path, () => {});
+// API to handle PDF uploads and comparison
+app.post('/compare', upload.fields([{ name: 'oldPDF' }, { name: 'newPDF' }]), (req, res) => {
+    try {
+        const oldPDF = req.files['oldPDF'][0].path;
+        const newPDF = req.files['newPDF'][0].path;
+        const outputPDF = path.join(__dirname, 'output', `diff-${Date.now()}.pdf`);
 
-    res.json({ downloadUrl: `/download/${path.basename(result.finalPdf)}`, sessionId, summaryUrl: `/download/${path.basename(result.summaryZip)}` });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Comparison failed', details: err.message, stack: err.stack });
-  }
+        if (!fs.existsSync('output')) {
+            fs.mkdirSync('output');
+        }
+
+        comparePDFs(oldPDF, newPDF, outputPDF, (err) => {
+            // Clean up uploaded files
+            fs.unlinkSync(oldPDF);
+            fs.unlinkSync(newPDF);
+
+            if (err) {
+                console.error('Error comparing PDFs:', err);
+                return res.status(500).json({ error: 'PDF comparison failed' });
+            }
+
+            res.download(outputPDF, (downloadErr) => {
+                if (downloadErr) {
+                    console.error('Download error:', downloadErr);
+                }
+                // Optional: delete diff after download
+                setTimeout(() => {
+                    if (fs.existsSync(outputPDF)) fs.unlinkSync(outputPDF);
+                }, 5000);
+            });
+        });
+    } catch (error) {
+        console.error('Unexpected error:', error);
+        res.status(500).json({ error: 'Unexpected server error' });
+    }
 });
 
-// Serve generated file
-app.get('/download/:file', (req, res) => {
-  const file = path.join(__dirname, 'tmp', req.params.file);
-  if (!require('fs').existsSync(file)) return res.status(404).send('Not found');
-  res.download(file, (err) => {
-    if (err) console.error('Download error:', err);
-  });
+// Root endpoint
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Advanced PDF Compare server listening on port ${PORT}`);
+    console.log(`✅ Server running on port ${PORT}`);
 });
+
