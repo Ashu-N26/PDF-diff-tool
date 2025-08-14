@@ -1,27 +1,21 @@
-FROM node:20-bullseye
+# Use Node.js 20
+FROM node:20
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y \
-  poppler-utils \
-  tesseract-ocr \
-  tesseract-ocr-eng \
-  imagemagick \
-  libopencv-dev \
-  build-essential \
-  python3 \
-  pkg-config \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
-
+# Set working directory
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install --production || true
 
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the code
 COPY . .
 
-# optional native build (may fail if OpenCV headers not located)
-RUN npm run build-native || true
-
-ENV PORT=3000
+# Expose the port
 EXPOSE 3000
-CMD ["node", "server.js"]
+
+# Start the app
+CMD ["npm", "start"]
+
