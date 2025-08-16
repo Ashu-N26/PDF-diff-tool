@@ -2,8 +2,8 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const diffNative = require("./diff_native/diff");
-const diffAdvanced = require("./diff_advanced/diff");
+const diffNative = require("./diff_native/diff.js");   // ✅ Fixed path
+const diffAdvanced = require("./compare_advanced.js"); // ✅ Fixed path
 const { PDFDocument, rgb } = require("pdf-lib");
 
 const app = express();
@@ -42,65 +42,42 @@ app.post("/compare", upload.fields([{ name: "pdf1" }, { name: "pdf2" }]), async 
       diffs = await diffNative(pdf1Path, pdf2Path);
     }
 
-    // Cleanup uploaded files
-    fs.unlinkSync(pdf1Path);
-    fs.unlinkSync(pdf2Path);
+    // Load the new PDF and highlight changes
+    const pdfBytes = fs.readFileSync(pdf2Path);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
 
-    if (diffs.length === 0) {
-      return res.send(`<h2>No differences found ✅</h2><a href="/">🔙 Compare another</a>`);
-    }
-
-    // Create PDF with highlights
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([800, 1000]);
-    const { height } = page.getSize();
-
-    let y = height - 50;
-    page.drawText("PDF Diff Results", { x: 50, y, size: 18 });
-    y -= 40;
-
-    diffs.forEach(d => {
-      if (y < 50) {
-        page.addPage();
-        y = height - 50;
+    diffs.forEach(diff => {
+      const { page, x, y, text } = diff;
+      if (pages[page]) {
+        const pageRef = pages[page];
+        pageRef.drawText(text, {
+          x,
+          y,
+          size: 12,
+          color: rgb(1, 0, 0), // ✅ Red highlight for changed text
+        });
       }
-      page.drawText(`Line ${d.line}:`, { x: 50, y, size: 12, color: rgb(0, 0, 0) });
-      y -= 20;
-      page.drawText(`- ${d.old}`, { x: 70, y, size: 12, color: rgb(1, 0, 0) }); // red = old
-      y -= 20;
-      page.drawText(`+ ${d.new}`, { x: 70, y, size: 12, color: rgb(0, 0.6, 0) }); // green = new
-      y -= 30;
     });
 
-    const pdfBytes = await pdfDoc.save();
-    const resultPath = path.join(__dirname, "result.pdf");
-    fs.writeFileSync(resultPath, pdfBytes);
+    const resultPdfBytes = await pdfDoc.save();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=result.pdf");
+    res.send(Buffer.from(resultPdfBytes));
 
-    // Send results as HTML with download link
-    res.send(`
-      <h2>Comparison Results</h2>
-      <ul>
-        ${diffs.map(d => `<li><b>Line ${d.line}:</b> <span style="color:red;">${d.old}</span> → <span style="color:green;">${d.new}</span></li>`).join("")}
-      </ul>
-      <br>
-      <a href="/download">⬇️ Download Highlighted PDF</a><br><br>
-      <a href="/">🔙 Compare another</a>
-    `);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error comparing PDFs: " + err.message);
+    // Cleanup uploads
+    fs.unlinkSync(pdf1Path);
+    fs.unlinkSync(pdf2Path);
+  } catch (error) {
+    console.error("Error processing PDFs:", error);
+    res.status(500).send("Error processing PDFs: " + error.message);
   }
 });
 
-// Download endpoint
-app.get("/download", (req, res) => {
-  const filePath = path.join(__dirname, "result.pdf");
-  res.download(filePath, "diff_results.pdf");
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
 
 
 
