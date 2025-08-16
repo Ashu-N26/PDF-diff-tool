@@ -1,0 +1,7 @@
+body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+h1 { margin-bottom: 8px; }
+.row { display: flex; gap: 24px; margin: 12px 0; }
+.col { display: flex; flex-direction: column; gap: 6px; }
+fieldset { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; max-width: 720px; }
+.result { margin-top: 24px; padding: 12px; background: #f5f7fa; border: 1px solid #e2e6ee; }
+.btn { padding: 10px 14px; background: #1f6feb; color: white; text-decoration: none; border-radius: 6px; }
