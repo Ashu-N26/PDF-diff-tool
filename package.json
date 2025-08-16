@@ -1,22 +1,22 @@
 {
   "name": "pdf-diff-tool",
-  "version": "2.0.0",
-  "description": "Advanced PDF comparison tool with highlights and page auto-resizing",
+  "version": "1.0.0",
+  "description": "A simple PDF difference highlighter",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
+    "diff": "^5.2.0",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
-    "pdf-lib": "^1.17.1",
-    "pdf-parse": "^1.1.1"
+    "multer": "^1.4.5",
+    "pdf-lib": "^1.17.1"
   },
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=18.x"
+  },
+  "license": "MIT"
 }
+
 
 
