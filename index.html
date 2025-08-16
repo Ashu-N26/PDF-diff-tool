@@ -1,15 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>PDF Diff Tool (Advanced)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Compare Tool</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>PDF Diff Tool - Advanced</h1>
-  <form id="uploadForm" enctype="multipart/form-data" method="post" action="/compare">
-    <input type="file" name="pdfs" accept="application/pdf" required>
-    <input type="file" name="pdfs" accept="application/pdf" required>
-    <button type="submit">Compare PDFs</button>
+  <h2>📑 Advanced PDF Compare Tool</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="files" accept="application/pdf" required>
+    <input type="file" name="files" accept="application/pdf" required>
+    <button type="submit">Compare</button>
   </form>
+  <p id="status"></p>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const status = document.getElementById("status");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      status.textContent = "Processing...";
+
+      try {
+        const res = await fetch("/compare", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) throw new Error("Comparison failed");
+        
+        const blob = await res.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "comparison_result.pdf";
+        link.click();
+
+        status.textContent = "✅ Comparison complete!";
+      } catch (err) {
+        status.textContent = "❌ Error: " + err.message;
+      }
+    });
+  </script>
 </body>
 </html>
+
