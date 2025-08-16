@@ -1,42 +1,50 @@
 // diff_native/diff.js
-// Basic text comparison (line-by-line) as a fallback if advanced diff fails
-
 const fs = require("fs");
-const pdfParse = require("pdf-parse");
+const { Diff } = require("diff");
+const PDFDocument = require("pdfkit");
 
-async function diffNative(pdfPath1, pdfPath2) {
-  try {
-    // Load both PDFs
-    const pdf1Buffer = fs.readFileSync(pdfPath1);
-    const pdf2Buffer = fs.readFileSync(pdfPath2);
+/**
+ * Generate a PDF with highlighted changes
+ * @param {string} oldText - Extracted text from the old PDF
+ * @param {string} newText - Extracted text from the new PDF
+ * @param {string} outputFile - Output PDF path
+ */
+function generateDiffPDF(oldText, newText, outputFile) {
+  const doc = new PDFDocument({ autoFirstPage: true });
+  doc.pipe(fs.createWriteStream(outputFile));
 
-    // Extract text
-    const pdf1Text = (await pdfParse(pdf1Buffer)).text;
-    const pdf2Text = (await pdfParse(pdf2Buffer)).text;
+  const diffs = Diff.diffWords(oldText, newText);
 
-    const diffs = [];
-    const lines1 = pdf1Text.split("\n");
-    const lines2 = pdf2Text.split("\n");
+  diffs.forEach((part) => {
+    if (part.added) {
+      // Highlight new text in red background
+      const width = doc.widthOfString(part.value);
+      const height = 14; // text height
+      const x = doc.x;
+      const y = doc.y;
 
-    const maxLen = Math.max(lines1.length, lines2.length);
+      doc.rect(x, y, width, height)
+        .fillOpacity(0.6)
+        .fill("red")
+        .fillOpacity(1);
 
-    // Compare line by line
-    for (let i = 0; i < maxLen; i++) {
-      if (lines1[i] !== lines2[i]) {
-        diffs.push({
-          line: i + 1,
-          old: lines1[i] || "",
-          new: lines2[i] || ""
-        });
-      }
+      doc.fillColor("white").text(part.value, x, y, { continued: true });
+    } else if (!part.removed) {
+      // Normal unchanged text
+      doc.fillColor("black").text(part.value, { continued: true });
     }
+    // Removed parts are ignored (not shown in final PDF)
+  });
 
-    return diffs;
-  } catch (err) {
-    console.error("Error in diffNative:", err);
-    return [{ error: "Native diff failed", details: err.message }];
-  }
+  doc.end();
+  console.log(`✅ Diff PDF created: ${outputFile}`);
 }
 
-module.exports = diffNative;
+// Example usage (uncomment when testing standalone)
+// const oldText = fs.readFileSync("old.txt", "utf8");
+// const newText = fs.readFileSync("new.txt", "utf8");
+// generateDiffPDF(oldText, newText, "result.pdf");
+
+module.exports = { generateDiffPDF };
+
 
