@@ -1,41 +1,70 @@
 const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
 const multer = require("multer");
+const path = require("path");
 const fs = require("fs");
+const diffNative = require("./diff_native/diff");
+const diffAdvanced = require("./diff_advanced/diff");
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Multer setup (for file uploads)
 const upload = multer({ dest: "uploads/" });
 
-app.use(bodyParser.json());
-app.use(cors());
-app.use(express.static("public"));
+// Serve static assets (if needed later)
+app.use(express.static(path.join(__dirname, "public")));
 
-app.post("/compare", upload.array("files", 2), async (req, res) => {
+// Landing page with upload form
+app.get("/", (req, res) => {
+  res.send(`
+    <h2>PDF Diff Tool</h2>
+    <form action="/compare" method="post" enctype="multipart/form-data">
+      <p>Select two PDF files to compare:</p>
+      <input type="file" name="pdf1" accept="application/pdf" required />
+      <br><br>
+      <input type="file" name="pdf2" accept="application/pdf" required />
+      <br><br>
+      <button type="submit">Compare</button>
+    </form>
+  `);
+});
+
+// Compare endpoint
+app.post("/compare", upload.fields([{ name: "pdf1" }, { name: "pdf2" }]), async (req, res) => {
   try {
-    const files = req.files;
-    if (!files || files.length !== 2) {
-      return res.status(400).json({ error: "Please upload exactly 2 PDFs." });
+    const pdf1Path = req.files["pdf1"][0].path;
+    const pdf2Path = req.files["pdf2"][0].path;
+
+    let diffs;
+
+    try {
+      // Try advanced comparison first
+      diffs = await diffAdvanced(pdf1Path, pdf2Path);
+    } catch (err) {
+      console.error("Advanced diff failed, falling back to native:", err.message);
+      diffs = await diffNative(pdf1Path, pdf2Path);
     }
 
-    const compareAdvanced = require("./compare_advanced");
-    const resultPath = await compareAdvanced(files[0].path, files[1].path);
+    // Cleanup uploaded files
+    fs.unlinkSync(pdf1Path);
+    fs.unlinkSync(pdf2Path);
 
-    res.download(resultPath, "comparison_result.pdf", (err) => {
-      if (err) console.error("Download error:", err);
-      fs.unlinkSync(files[0].path);
-      fs.unlinkSync(files[1].path);
-      fs.unlinkSync(resultPath);
-    });
-  } catch (err) {
-    console.error("❌ Compare failed:", err);
-    res.status(500).json({ error: "Comparison failed" });
-  }
-});
+    // Return results as simple HTML
+    res.send(`
+      <h2>Comparison Results</h2>
+      ${
+        diffs.length === 0
+          ? "<p>No differences found ✅</p>"
+          : `<ul>${diffs
+              .map(
+                d => `<li><b>Line ${d.line}:</b> 
+                       <span style="color:red;">${d.old}</span> → 
+                       <span style="color:green;">${d.new}</span></li>`
+              )
+              .join("")}</ul>`
+      }
+      <br>
+      <a hre
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
 
 
