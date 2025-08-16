@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AIP PDF Compare</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>AIP PDF Compare</h1>
+  <p>Output 1: Single annotated latest PDF (red = changed; panel shows old values in green). Output 2: Side‑by‑side old vs new.</p>
+
+  <form action="/compare" method="post" enctype="multipart/form-data">
+    <div class="row">
+      <div class="col">
+        <label>Old PDF</label>
+        <input type="file" name="old_pdf" accept="application/pdf" required>
+      </div>
+      <div class="col">
+        <label>New PDF</label>
+        <input type="file" name="new_pdf" accept="application/pdf" required>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Options</legend>
+      <label><input type="checkbox" name="add_front_summary" checked> Front-page summary</label>
+      <label><input type="checkbox" name="add_minima_panels" checked> Minima Panel (MDA/DA/RVR/VIS)</label>
+      <label><input type="checkbox" name="detect_courses" checked> Final course</label>
+      <label><input type="checkbox" name="detect_dme" checked> DME distances</label>
+      <label><input type="checkbox" name="detect_notes" checked> Notes/Remarks</label>
+    </fieldset>
+
+    <button type="submit">Compare PDFs</button>
+  </form>
+
+  {% if download_annotated and download_sbs %}
+    <div class="result">
+      <h3>Download results</h3>
+      <div><a class="btn" href="{{ download_annotated }}">1) Annotated latest PDF</a></div>
+      <div style="margin-top:10px;"><a class="btn" href="{{ download_sbs }}">2) Side-by-side PDF</a></div>
+    </div>
+  {% endif %}
+</body>
+</html>
